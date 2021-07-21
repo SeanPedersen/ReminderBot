@@ -66,7 +66,7 @@ class DBConn:
             (telegram_id, unix, first_name),
         )
     
-    def add_reminder(self, telegram_user_id, message, interval):
+    def add_reminder(self, telegram_user_id, message, interval_hours):
         unix = int(time.time())
 
         self.c.execute(
@@ -79,5 +79,15 @@ class DBConn:
             )
             VALUES(?, ?, ?, ?)
             """,
-            (telegram_user_id, message, unix, interval)
+            (telegram_user_id, message, unix, interval_hours)
         )
+    
+    def get_reminders(self):
+        """Returns active reminders"""
+        self.c.execute("""
+            SELECT message, created_time, interval_hours, user_id
+            FROM reminder
+        """)
+
+        data = self.c.fetchall()
+        return data
