@@ -29,6 +29,7 @@ class DBConn:
                 message TEXT,
                 created_time INTEGER,
                 interval_hours INTEGER,
+                active INTEGER,
                 FOREIGN KEY (user_id) REFERENCES user(telegram_id)
             )
             """
@@ -75,19 +76,40 @@ class DBConn:
                 user_id,
                 message,
                 created_time,
-                interval_hours
+                interval_hours,
+                active
             )
-            VALUES(?, ?, ?, ?)
+            VALUES(?, ?, ?, ?, 1)
             """,
             (telegram_user_id, message, unix, interval_hours)
         )
     
-    def get_reminders(self):
-        """Returns active reminders"""
+    def get_all_active_reminders(self):
+        """Returns all active reminders"""
         self.c.execute("""
             SELECT message, created_time, interval_hours, user_id
             FROM reminder
+            WHERE active = 1
         """)
 
         data = self.c.fetchall()
         return data
+
+    def get_active_reminders(self, user_id):
+        """Returns active reminders of a user"""
+        self.c.execute("""
+            SELECT message, interval_hours, reminder_id
+            FROM reminder
+            WHERE active = 1 AND user_id = ?
+        """, [user_id])
+
+        data = self.c.fetchall()
+        return data
+    
+    def inactivate_reminder(self, id):
+        self.c.execute("""
+            UPDATE reminder
+            SET active = 0
+            WHERE
+                reminder_id = ?
+        """, [id])

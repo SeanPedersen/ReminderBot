@@ -27,7 +27,7 @@ def reminder_thread(updater):
         unix_current = int(time.time())
 
         with DBConn() as db:
-            reminders = db.get_reminders()
+            reminders = db.get_all_active_reminders()
         next_up_reminders = []
         for message, created_time, interval_hours, telegram_id in reminders:
             next_up_reminders.append((telegram_id, message, next_rem(unix_current, created_time, interval_hours * 60 * 60)))
@@ -76,10 +76,25 @@ def cancel(update: Update, context: CallbackContext):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Operation canceled.")
     return ConversationHandler.END
 
-def delete_reminder(update: Update, context: CallbackContext):
-    """Delete an existing reminder message"""
-    context.bot.send_message(chat_id=update.effective_chat.id, text="What is it you had enough of?")
+def deactivate_reminder_0(update: Update, context: CallbackContext):
+    """Deactivate an existing reminder message"""
+    with DBConn() as db:
+        active_reminders = db.get_active_reminders(update.message.from_user.id)
+    keyboard = [[]]
+    for message, interval_hours, reminder_id in active_reminders:
+        keyboard[0].append(InlineKeyboardButton(f"{message} ({interval_hours}H)", callback_data=str(reminder_id)))
+    update.message.reply_text("Choose a reminder to deactivate")
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text("Active Reminders:", reply_markup=reply_markup)
+    return 0
 
+def deactivate_reminder_1(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+    choice = query.data
+    with DBConn() as db:
+        db.inactivate_reminder(choice)
+    context.bot.send_message(chat_id=update.effective_chat.id, text="done.")
 
 def main():
     print("Server starting...")
@@ -109,6 +124,20 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     DP.add_handler(new_reminder_handler)
+
+    deactivate_reminder_handler = ConversationHandler(
+        entry_points=[CommandHandler(
+                                    "deactivate",
+                                    deactivate_reminder_0,
+                                    )],
+        states={
+            0: [
+                CallbackQueryHandler(deactivate_reminder_1)
+            ],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    DP.add_handler(deactivate_reminder_handler)
 
     print("Bot is running...")
     DP.run_async(reminder_thread, UPDATER)
