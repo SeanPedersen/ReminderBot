@@ -67,6 +67,11 @@ def create_reminder_2(update: Update, context: CallbackContext):
     reminder_interval = update.message.text
     if reminder_interval == "/cancel":
         return cancel(update, context)
+    try:
+        reminder_interval = int(reminder_interval)
+    except:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Please enter just a number!")
+        return 1
     with DBConn() as db:
         db.add_reminder(update.message.from_user.id, context.chat_data["reminder_message"], reminder_interval)
     context.bot.send_message(chat_id=update.effective_chat.id, text="Created your reminder!")
